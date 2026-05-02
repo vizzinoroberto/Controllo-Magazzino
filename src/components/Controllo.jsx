@@ -90,11 +90,13 @@ export default function Controllo({ logo, negozio }) {
   }
 
   function buildRigheStampa() {
-    const righeProdotti = prodotti.map((p) => ({
-      nome: p.nome,
-      qta_mancante: quantitaMancante[p.id] || 0,
-      qta_necessaria: p.qta_necessaria || 0,
-    }))
+    const righeProdotti = prodotti
+      .filter((p) => (quantitaMancante[p.id] || 0) > 0)
+      .map((p) => ({
+        nome: p.nome,
+        qta_mancante: quantitaMancante[p.id],
+        qta_necessaria: p.qta_necessaria || 0,
+      }))
     const righeLibereCompilate = righeLibere
       .filter((r) => r.nome.trim() !== '' || r.qtaMancante > 0 || r.qtaNecessaria > 0)
       .map((r) => ({
