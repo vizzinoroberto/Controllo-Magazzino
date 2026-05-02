@@ -76,6 +76,37 @@ html, body {
   background: rgba(200, 16, 46, 0.05);
 }
 
+/* ======= SUBTABS ======= */
+.subtabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding-left: 4px;
+}
+
+.subtab {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  border: 1.5px solid #d0d0c8;
+  border-radius: 20px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.subtab.active {
+  background: #c8102e;
+  border-color: #c8102e;
+  color: #fff;
+}
+
+.subtab:active {
+  opacity: 0.8;
+}
+
 /* ======= TABLE / LIST ======= */
 .list-table {
   background: #fff;

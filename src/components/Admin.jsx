@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient.js'
 
 const ADMIN_PASSWORD = 'Arco2026'
 
-export default function Admin({ isAuth, onAuth, onLogout }) {
+export default function Admin({ isAuth, onAuth, onLogout, negozio }) {
   const [pwInput, setPwInput] = useState('')
   const [pwError, setPwError] = useState('')
 

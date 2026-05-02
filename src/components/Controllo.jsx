@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient.js'
 
-export default function Controllo({ logo }) {
+export default function Controllo({ logo, negozio }) {
   const [prodotti, setProdotti] = useState([])
   const [quantitaMancante, setQuantitaMancante] = useState({}) // {prodotto_id: numero}
   const [righeLibere, setRigheLibere] = useState([
@@ -252,6 +252,11 @@ export default function Controllo({ logo }) {
         <div className="print-header">
           <h1>ARCOBALENO — Controllo Magazzino</h1>
           <div>Pizzeria · Ristorante</div>
+          {negozio && (
+            <div style={{ marginTop: 6, fontWeight: 700, fontSize: 16 }}>
+              {negozio === 'centralcash' ? 'CentralCash' : 'IperTosano'}
+            </div>
+          )}
         </div>
         <div className="print-meta">
           <div>
