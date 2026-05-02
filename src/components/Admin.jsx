@@ -40,10 +40,10 @@ export default function Admin({ isAuth, onAuth, onLogout, negozio }) {
     )
   }
 
-  return <AdminDashboard onLogout={onLogout} />
+  return <AdminDashboard onLogout={onLogout} negozio={negozio} />
 }
 
-function AdminDashboard({ onLogout }) {
+function AdminDashboard({ onLogout, negozio }) {
   const [prodotti, setProdotti] = useState([])
   const [storico, setStorico] = useState([])
   const [loading, setLoading] = useState(true)
@@ -56,15 +56,16 @@ function AdminDashboard({ onLogout }) {
 
   useEffect(() => {
     loadAll()
-  }, [])
+  }, [negozio])
 
   async function loadAll() {
     setLoading(true)
     const [prodRes, storRes] = await Promise.all([
-      supabase.from('prodotti').select('*').order('ordine', { ascending: true }),
+      supabase.from('prodotti').select('*').eq('negozio', negozio).order('ordine', { ascending: true }),
       supabase
         .from('controlli_storico')
         .select('*')
+        .eq('negozio', negozio)
         .order('data_ora', { ascending: false })
         .limit(100),
     ])
@@ -89,6 +90,7 @@ function AdminDashboard({ onLogout }) {
         nome: newNome.trim(),
         qta_necessaria: parseInt(newQtaNecessaria, 10) || 0,
         ordine: maxOrdine + 1,
+        negozio: negozio,
       },
     ])
     if (error) {

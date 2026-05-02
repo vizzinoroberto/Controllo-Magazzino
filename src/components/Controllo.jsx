@@ -13,10 +13,12 @@ export default function Controllo({ logo, negozio }) {
   const [toast, setToast] = useState('')
   const stampaInCorso = useRef(false)
 
-  // Carica prodotti
+  // Carica prodotti del negozio corrente e azzera lo stato quando si cambia negozio
   useEffect(() => {
+    setQuantitaMancante({})
+    setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaMancante: 0, qtaNecessaria: 0 }])
     loadProdotti()
-  }, [])
+  }, [negozio])
 
   // Aggiorna l'orologio ogni secondo
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function Controllo({ logo, negozio }) {
     const { data, error } = await supabase
       .from('prodotti')
       .select('*')
+      .eq('negozio', negozio)
       .order('ordine', { ascending: true })
 
     if (error) {
@@ -118,6 +121,7 @@ export default function Controllo({ logo, negozio }) {
         data_ora: dataOra,
         nome_controllore: nomeControllore.trim(),
         righe: righe,
+        negozio: negozio,
       },
     ])
 
