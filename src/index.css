@@ -118,7 +118,7 @@ html, body {
 
 .list-header {
   display: grid;
-  grid-template-columns: 1fr 130px 130px;
+  grid-template-columns: 1fr 110px 110px 110px;
   gap: 12px;
   padding: 14px 16px;
   background: #2a2a2a;
@@ -139,7 +139,7 @@ html, body {
 
 .list-row {
   display: grid;
-  grid-template-columns: 1fr 130px 130px;
+  grid-template-columns: 1fr 110px 110px 110px;
   gap: 12px;
   align-items: center;
   padding: 14px 16px;
@@ -210,6 +210,18 @@ html, body {
   font-weight: 600;
   color: #555;
   padding: 10px 0;
+}
+
+.qta-computed {
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  color: #aaa;
+  padding: 10px 0;
+}
+
+.qta-computed--alert {
+  color: #c8102e;
 }
 
 .btn-remove-row {

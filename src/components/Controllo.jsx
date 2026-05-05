@@ -3,9 +3,9 @@ import { supabase } from '../supabaseClient.js'
 
 export default function Controllo({ logo, negozio }) {
   const [prodotti, setProdotti] = useState([])
-  const [quantitaMancante, setQuantitaMancante] = useState({}) // {prodotto_id: numero}
+  const [quantitaPresente, setQuantitaPresente] = useState({}) // {prodotto_id: numero}
   const [righeLibere, setRigheLibere] = useState([
-    { id: `lib-${Date.now()}`, nome: '', qtaMancante: 0, qtaNecessaria: 0 }
+    { id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 }
   ])
   const [nomeControllore, setNomeControllore] = useState('')
   const [now, setNow] = useState(new Date())
@@ -15,8 +15,8 @@ export default function Controllo({ logo, negozio }) {
 
   // Carica prodotti del negozio corrente e azzera lo stato quando si cambia negozio
   useEffect(() => {
-    setQuantitaMancante({})
-    setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaMancante: 0, qtaNecessaria: 0 }])
+    setQuantitaPresente({})
+    setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 }])
     loadProdotti()
   }, [negozio])
 
@@ -31,9 +31,8 @@ export default function Controllo({ logo, negozio }) {
     const handleAfterPrint = () => {
       if (stampaInCorso.current) {
         stampaInCorso.current = false
-        // Azzera quantità mancanti e righe libere
-        setQuantitaMancante({})
-        setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaMancante: 0, qtaNecessaria: 0 }])
+        setQuantitaPresente({})
+        setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 }])
         setNomeControllore('')
         showToast('Controllo stampato e archiviato')
       }
@@ -64,8 +63,8 @@ export default function Controllo({ logo, negozio }) {
     setTimeout(() => setToast(''), 2500)
   }
 
-  function setMancante(prodId, val) {
-    setQuantitaMancante((prev) => ({ ...prev, [prodId]: parseInt(val, 10) || 0 }))
+  function setPresente(prodId, val) {
+    setQuantitaPresente((prev) => ({ ...prev, [prodId]: parseInt(val, 10) || 0 }))
   }
 
   function updateRigaLibera(id, field, val) {
@@ -81,7 +80,7 @@ export default function Controllo({ logo, negozio }) {
   function addRigaLibera() {
     setRigheLibere((prev) => [
       ...prev,
-      { id: `lib-${Date.now()}`, nome: '', qtaMancante: 0, qtaNecessaria: 0 },
+      { id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 },
     ])
   }
 
@@ -89,19 +88,23 @@ export default function Controllo({ logo, negozio }) {
     setRigheLibere((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev))
   }
 
+  function calcMancante(necessaria, presente) {
+    return Math.max(0, (necessaria || 0) - (presente || 0))
+  }
+
   function buildRigheStampa() {
     const righeProdotti = prodotti
-      .filter((p) => (quantitaMancante[p.id] || 0) > 0)
+      .filter((p) => calcMancante(p.qta_necessaria, quantitaPresente[p.id]) > 0)
       .map((p) => ({
         nome: p.nome,
-        qta_mancante: quantitaMancante[p.id],
+        qta_mancante: calcMancante(p.qta_necessaria, quantitaPresente[p.id]),
         qta_necessaria: p.qta_necessaria || 0,
       }))
     const righeLibereCompilate = righeLibere
-      .filter((r) => r.nome.trim() !== '' || r.qtaMancante > 0 || r.qtaNecessaria > 0)
+      .filter((r) => r.nome.trim() !== '' || r.qtaPresente > 0 || r.qtaNecessaria > 0)
       .map((r) => ({
         nome: r.nome.trim() || '(senza nome)',
-        qta_mancante: r.qtaMancante,
+        qta_mancante: calcMancante(r.qtaNecessaria, r.qtaPresente),
         qta_necessaria: r.qtaNecessaria,
         libera: true,
       }))
@@ -117,7 +120,6 @@ export default function Controllo({ logo, negozio }) {
     const righe = buildRigheStampa()
     const dataOra = new Date().toISOString()
 
-    // Salva su Supabase
     const { error } = await supabase.from('controlli_storico').insert([
       {
         data_ora: dataOra,
@@ -132,7 +134,6 @@ export default function Controllo({ logo, negozio }) {
       showToast('Errore salvataggio storico — stampa comunque')
     }
 
-    // Lancia la stampa
     stampaInCorso.current = true
     setTimeout(() => window.print(), 100)
   }
@@ -160,8 +161,9 @@ export default function Controllo({ logo, negozio }) {
         <div className="list-table">
           <div className="list-header">
             <div className="col-prod">Prodotto</div>
-            <div className="col-num">Qta mancante</div>
+            <div className="col-num">Qta presente</div>
             <div className="col-num">Qta necessaria</div>
+            <div className="col-num">Qta mancante</div>
           </div>
 
           {prodotti.length === 0 && (
@@ -170,58 +172,71 @@ export default function Controllo({ logo, negozio }) {
             </div>
           )}
 
-          {prodotti.map((p) => (
-            <div className="list-row" key={p.id}>
-              <div className="prod-name">{p.nome}</div>
-              <select
-                className="qta-select"
-                value={quantitaMancante[p.id] || 0}
-                onChange={(e) => setMancante(p.id, e.target.value)}
-              >
-                {Array.from({ length: 100 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </select>
-              <div className="qta-fissa">{p.qta_necessaria || 0}</div>
-            </div>
-          ))}
+          {prodotti.map((p) => {
+            const presente = quantitaPresente[p.id] || 0
+            const mancante = calcMancante(p.qta_necessaria, presente)
+            return (
+              <div className="list-row" key={p.id}>
+                <div className="prod-name">{p.nome}</div>
+                <select
+                  className="qta-select"
+                  value={presente}
+                  onChange={(e) => setPresente(p.id, e.target.value)}
+                >
+                  {Array.from({ length: 100 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </select>
+                <div className="qta-fissa">{p.qta_necessaria || 0}</div>
+                <div className={`qta-computed${mancante > 0 ? ' qta-computed--alert' : ''}`}>
+                  {mancante}
+                </div>
+              </div>
+            )
+          })}
 
           {/* Righe libere */}
-          {righeLibere.map((r) => (
-            <div className="list-row row-libera" key={r.id}>
-              <input
-                className="prod-input"
-                type="text"
-                placeholder="Scrittura libera…"
-                value={r.nome}
-                onChange={(e) => updateRigaLibera(r.id, 'nome', e.target.value)}
-              />
-              <select
-                className="qta-select"
-                value={r.qtaMancante}
-                onChange={(e) => updateRigaLibera(r.id, 'qtaMancante', e.target.value)}
-              >
-                {Array.from({ length: 100 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="qta-select"
-                value={r.qtaNecessaria}
-                onChange={(e) => updateRigaLibera(r.id, 'qtaNecessaria', e.target.value)}
-              >
-                {Array.from({ length: 100 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
+          {righeLibere.map((r) => {
+            const mancante = calcMancante(r.qtaNecessaria, r.qtaPresente)
+            return (
+              <div className="list-row row-libera" key={r.id}>
+                <input
+                  className="prod-input"
+                  type="text"
+                  placeholder="Scrittura libera…"
+                  value={r.nome}
+                  onChange={(e) => updateRigaLibera(r.id, 'nome', e.target.value)}
+                />
+                <select
+                  className="qta-select"
+                  value={r.qtaPresente}
+                  onChange={(e) => updateRigaLibera(r.id, 'qtaPresente', e.target.value)}
+                >
+                  {Array.from({ length: 100 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="qta-select"
+                  value={r.qtaNecessaria}
+                  onChange={(e) => updateRigaLibera(r.id, 'qtaNecessaria', e.target.value)}
+                >
+                  {Array.from({ length: 100 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </select>
+                <div className={`qta-computed${mancante > 0 ? ' qta-computed--alert' : ''}`}>
+                  {mancante}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <button className="add-row-btn" onClick={addRigaLibera}>
