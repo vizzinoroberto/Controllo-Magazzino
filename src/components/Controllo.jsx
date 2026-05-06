@@ -12,6 +12,7 @@ export default function Controllo({ logo, negozio }) {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const stampaInCorso = useRef(false)
+  const righeDaStampareRef = useRef([]) // dati congelati per la stampa (non reattivi)
 
   // Carica prodotti del negozio corrente e azzera lo stato quando si cambia negozio
   useEffect(() => {
@@ -118,6 +119,8 @@ export default function Controllo({ logo, negozio }) {
     }
 
     const righe = buildRigheStampa()
+    righeDaStampareRef.current = righe // congela i dati prima di qualsiasi await o reset
+
     const dataOra = new Date().toISOString()
 
     const { error } = await supabase.from('controlli_storico').insert([
@@ -151,8 +154,6 @@ export default function Controllo({ logo, negozio }) {
   if (loading) {
     return <div className="loading">Caricamento prodotti…</div>
   }
-
-  const righeStampaPreview = buildRigheStampa()
 
   return (
     <>
@@ -296,7 +297,7 @@ export default function Controllo({ logo, negozio }) {
             </tr>
           </thead>
           <tbody>
-            {righeStampaPreview.map((r, idx) => (
+            {righeDaStampareRef.current.map((r, idx) => (
               <tr key={idx}>
                 <td>
                   {r.nome}
