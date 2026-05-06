@@ -46,6 +46,7 @@ export default function Admin({ isAuth, onAuth, onLogout, negozio }) {
 
 function AdminDashboard({ onLogout, negozio }) {
   const [prodotti, setProdotti] = useState([])
+  const [prodottiAltro, setProdottiAltro] = useState([])
   const [storico, setStorico] = useState([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
@@ -56,14 +57,17 @@ function AdminDashboard({ onLogout, negozio }) {
   const [newQtaNecessaria, setNewQtaNecessaria] = useState('')
   const [addEntrambi, setAddEntrambi] = useState(false)
 
+  const altroNegozio = negozio === 'centralcash' ? 'ipertosano' : 'centralcash'
+
   useEffect(() => {
     loadAll()
   }, [negozio])
 
   async function loadAll() {
     setLoading(true)
-    const [prodRes, storRes] = await Promise.all([
+    const [prodRes, altroRes, storRes] = await Promise.all([
       supabase.from('prodotti').select('*').eq('negozio', negozio).order('ordine', { ascending: true }),
+      supabase.from('prodotti').select('*').eq('negozio', altroNegozio).order('ordine', { ascending: true }),
       supabase
         .from('controlli_storico')
         .select('*')
@@ -72,6 +76,7 @@ function AdminDashboard({ onLogout, negozio }) {
         .limit(100),
     ])
     if (!prodRes.error) setProdotti(prodRes.data || [])
+    if (!altroRes.error) setProdottiAltro(altroRes.data || [])
     if (!storRes.error) setStorico(storRes.data || [])
     setLoading(false)
   }
@@ -79,6 +84,32 @@ function AdminDashboard({ onLogout, negozio }) {
   function showToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(''), 2500)
+  }
+
+  function isInAltro(nome) {
+    return prodottiAltro.some(
+      (p) => p.nome.trim().toLowerCase() === nome.trim().toLowerCase()
+    )
+  }
+
+  async function toggleAltroNegozio(p) {
+    if (isInAltro(p.nome)) {
+      const match = prodottiAltro.find(
+        (x) => x.nome.trim().toLowerCase() === p.nome.trim().toLowerCase()
+      )
+      await supabase.from('prodotti').delete().eq('id', match.id)
+    } else {
+      const maxOrdine = prodottiAltro.reduce((m, x) => Math.max(m, x.ordine || 0), 0)
+      await supabase.from('prodotti').insert([
+        {
+          nome: p.nome.trim(),
+          qta_necessaria: p.qta_necessaria || 0,
+          ordine: maxOrdine + 1,
+          negozio: altroNegozio,
+        },
+      ])
+    }
+    loadAll()
   }
 
   async function addProdotto() {
@@ -95,13 +126,7 @@ function AdminDashboard({ onLogout, negozio }) {
       if (neg === negozio) {
         maxOrdine = prodotti.reduce((m, p) => Math.max(m, p.ordine || 0), 0)
       } else {
-        const { data } = await supabase
-          .from('prodotti')
-          .select('ordine')
-          .eq('negozio', neg)
-          .order('ordine', { ascending: false })
-          .limit(1)
-        maxOrdine = data?.[0]?.ordine || 0
+        maxOrdine = prodottiAltro.reduce((m, p) => Math.max(m, p.ordine || 0), 0)
       }
       inserts.push({
         nome: newNome.trim(),
@@ -132,7 +157,6 @@ function AdminDashboard({ onLogout, negozio }) {
       console.error(error)
       showToast('Errore aggiornamento')
     } else {
-      // aggiorno locale senza ricaricare tutto
       setProdotti((prev) => prev.map((p) => (p.id === id ? { ...p, ...update } : p)))
     }
   }
@@ -199,6 +223,12 @@ function AdminDashboard({ onLogout, negozio }) {
           prodotti.map((p, idx) => (
             <div className="admin-product-row" key={p.id}>
               <input
+                type="checkbox"
+                className="row-checkbox"
+                checked={isInAltro(p.nome)}
+                onChange={() => toggleAltroNegozio(p)}
+              />
+              <input
                 type="text"
                 value={p.nome}
                 onChange={(e) =>
@@ -253,6 +283,12 @@ function AdminDashboard({ onLogout, negozio }) {
 
         <div className="admin-add-row">
           <input
+            type="checkbox"
+            className="row-checkbox"
+            checked={addEntrambi}
+            onChange={(e) => setAddEntrambi(e.target.checked)}
+          />
+          <input
             type="text"
             placeholder="Nome nuovo prodotto"
             value={newNome}
@@ -270,14 +306,6 @@ function AdminDashboard({ onLogout, negozio }) {
           <button className="btn-primary" onClick={addProdotto}>
             + Aggiungi
           </button>
-          <label className="toggle-entrambi">
-            <input
-              type="checkbox"
-              checked={addEntrambi}
-              onChange={(e) => setAddEntrambi(e.target.checked)}
-            />
-            Aggiungi a entrambi i negozi
-          </label>
         </div>
       </div>
 
