@@ -455,12 +455,31 @@ html, body {
   border-top: 2px solid #e0e0d8;
 }
 
-.admin-add-row input {
+.admin-add-row input[type='text'],
+.admin-add-row input[type='number'] {
   font-size: 16px;
   padding: 10px;
   border: 1px solid #d0d0c8;
   border-radius: 6px;
   font-family: inherit;
+}
+
+.toggle-entrambi {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.toggle-entrambi input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #c8102e;
 }
 
 .storico-item {

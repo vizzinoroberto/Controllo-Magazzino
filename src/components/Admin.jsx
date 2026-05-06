@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient.js'
 
 const ADMIN_PASSWORD = 'Arco2026'
+const NEGOZI = ['centralcash', 'ipertosano']
 
 export default function Admin({ isAuth, onAuth, onLogout, negozio }) {
   const [pwInput, setPwInput] = useState('')
@@ -53,6 +54,7 @@ function AdminDashboard({ onLogout, negozio }) {
   // Form nuovo prodotto
   const [newNome, setNewNome] = useState('')
   const [newQtaNecessaria, setNewQtaNecessaria] = useState('')
+  const [addEntrambi, setAddEntrambi] = useState(false)
 
   useEffect(() => {
     loadAll()
@@ -84,15 +86,32 @@ function AdminDashboard({ onLogout, negozio }) {
       showToast('Inserisci il nome del prodotto')
       return
     }
-    const maxOrdine = prodotti.reduce((m, p) => Math.max(m, p.ordine || 0), 0)
-    const { error } = await supabase.from('prodotti').insert([
-      {
+
+    const negozi = addEntrambi ? NEGOZI : [negozio]
+    const inserts = []
+
+    for (const neg of negozi) {
+      let maxOrdine
+      if (neg === negozio) {
+        maxOrdine = prodotti.reduce((m, p) => Math.max(m, p.ordine || 0), 0)
+      } else {
+        const { data } = await supabase
+          .from('prodotti')
+          .select('ordine')
+          .eq('negozio', neg)
+          .order('ordine', { ascending: false })
+          .limit(1)
+        maxOrdine = data?.[0]?.ordine || 0
+      }
+      inserts.push({
         nome: newNome.trim(),
         qta_necessaria: parseInt(newQtaNecessaria, 10) || 0,
         ordine: maxOrdine + 1,
-        negozio: negozio,
-      },
-    ])
+        negozio: neg,
+      })
+    }
+
+    const { error } = await supabase.from('prodotti').insert(inserts)
     if (error) {
       console.error(error)
       showToast('Errore in aggiunta')
@@ -100,7 +119,8 @@ function AdminDashboard({ onLogout, negozio }) {
     }
     setNewNome('')
     setNewQtaNecessaria('')
-    showToast('Prodotto aggiunto')
+    setAddEntrambi(false)
+    showToast(negozi.length > 1 ? 'Prodotto aggiunto a entrambi i negozi' : 'Prodotto aggiunto')
     loadAll()
   }
 
@@ -237,6 +257,7 @@ function AdminDashboard({ onLogout, negozio }) {
             placeholder="Nome nuovo prodotto"
             value={newNome}
             onChange={(e) => setNewNome(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addProdotto()}
           />
           <input
             type="number"
@@ -249,6 +270,14 @@ function AdminDashboard({ onLogout, negozio }) {
           <button className="btn-primary" onClick={addProdotto}>
             + Aggiungi
           </button>
+          <label className="toggle-entrambi">
+            <input
+              type="checkbox"
+              checked={addEntrambi}
+              onChange={(e) => setAddEntrambi(e.target.checked)}
+            />
+            Aggiungi a entrambi i negozi
+          </label>
         </div>
       </div>
 
