@@ -12,10 +12,10 @@ export default function Controllo({ logo, negozio }) {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const stampaInCorso = useRef(false)
-  const prodottiRef = useRef([]) // per accedere ai prodotti aggiornati nell'handler afterprint
 
   // Carica prodotti del negozio corrente e azzera lo stato quando si cambia negozio
   useEffect(() => {
+    setQuantitaPresente({})
     setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 }])
     loadProdotti()
   }, [negozio])
@@ -26,12 +26,12 @@ export default function Controllo({ logo, negozio }) {
     return () => clearInterval(t)
   }, [])
 
-  // Listener "afterprint" per ripristinare le quantità dopo la stampa
+  // Listener "afterprint" per azzerare le quantità dopo la stampa
   useEffect(() => {
     const handleAfterPrint = () => {
       if (stampaInCorso.current) {
         stampaInCorso.current = false
-        setQuantitaPresente(inizializzaPresente(prodottiRef.current))
+        setQuantitaPresente({})
         setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 }])
         setNomeControllore('')
         showToast('Controllo stampato e archiviato')
@@ -40,14 +40,6 @@ export default function Controllo({ logo, negozio }) {
     window.addEventListener('afterprint', handleAfterPrint)
     return () => window.removeEventListener('afterprint', handleAfterPrint)
   }, [])
-
-  function inizializzaPresente(lista) {
-    const map = {}
-    for (const p of lista) {
-      map[p.id] = p.qta_necessaria || 0
-    }
-    return map
-  }
 
   async function loadProdotti() {
     setLoading(true)
@@ -61,10 +53,7 @@ export default function Controllo({ logo, negozio }) {
       console.error(error)
       showToast('Errore caricamento prodotti')
     } else {
-      const lista = data || []
-      setProdotti(lista)
-      prodottiRef.current = lista
-      setQuantitaPresente(inizializzaPresente(lista))
+      setProdotti(data || [])
     }
     setLoading(false)
   }
@@ -105,14 +94,14 @@ export default function Controllo({ logo, negozio }) {
 
   function buildRigheStampa() {
     const righeProdotti = prodotti
-      .filter((p) => calcMancante(p.qta_necessaria, quantitaPresente[p.id]) > 0)
+      .filter((p) => quantitaPresente[p.id] !== undefined && calcMancante(p.qta_necessaria, quantitaPresente[p.id]) > 0)
       .map((p) => ({
         nome: p.nome,
         qta_mancante: calcMancante(p.qta_necessaria, quantitaPresente[p.id]),
         qta_necessaria: p.qta_necessaria || 0,
       }))
     const righeLibereCompilate = righeLibere
-      .filter((r) => r.nome.trim() !== '' || r.qtaPresente > 0 || r.qtaNecessaria > 0)
+      .filter((r) => (r.nome.trim() !== '' || r.qtaNecessaria > 0) && calcMancante(r.qtaNecessaria, r.qtaPresente) > 0)
       .map((r) => ({
         nome: r.nome.trim() || '(senza nome)',
         qta_mancante: calcMancante(r.qtaNecessaria, r.qtaPresente),
