@@ -12,10 +12,10 @@ export default function Controllo({ logo, negozio }) {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const stampaInCorso = useRef(false)
+  const prodottiRef = useRef([]) // per accedere ai prodotti aggiornati nell'handler afterprint
 
   // Carica prodotti del negozio corrente e azzera lo stato quando si cambia negozio
   useEffect(() => {
-    setQuantitaPresente({})
     setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 }])
     loadProdotti()
   }, [negozio])
@@ -26,12 +26,12 @@ export default function Controllo({ logo, negozio }) {
     return () => clearInterval(t)
   }, [])
 
-  // Listener "afterprint" per azzerare le quantità dopo la stampa
+  // Listener "afterprint" per ripristinare le quantità dopo la stampa
   useEffect(() => {
     const handleAfterPrint = () => {
       if (stampaInCorso.current) {
         stampaInCorso.current = false
-        setQuantitaPresente({})
+        setQuantitaPresente(inizializzaPresente(prodottiRef.current))
         setRigheLibere([{ id: `lib-${Date.now()}`, nome: '', qtaPresente: 0, qtaNecessaria: 0 }])
         setNomeControllore('')
         showToast('Controllo stampato e archiviato')
@@ -40,6 +40,14 @@ export default function Controllo({ logo, negozio }) {
     window.addEventListener('afterprint', handleAfterPrint)
     return () => window.removeEventListener('afterprint', handleAfterPrint)
   }, [])
+
+  function inizializzaPresente(lista) {
+    const map = {}
+    for (const p of lista) {
+      map[p.id] = p.qta_necessaria || 0
+    }
+    return map
+  }
 
   async function loadProdotti() {
     setLoading(true)
@@ -53,7 +61,10 @@ export default function Controllo({ logo, negozio }) {
       console.error(error)
       showToast('Errore caricamento prodotti')
     } else {
-      setProdotti(data || [])
+      const lista = data || []
+      setProdotti(lista)
+      prodottiRef.current = lista
+      setQuantitaPresente(inizializzaPresente(lista))
     }
     setLoading(false)
   }
@@ -173,7 +184,7 @@ export default function Controllo({ logo, negozio }) {
           )}
 
           {prodotti.map((p) => {
-            const presente = quantitaPresente[p.id] || 0
+            const presente = quantitaPresente[p.id] ?? (p.qta_necessaria || 0)
             const mancante = calcMancante(p.qta_necessaria, presente)
             return (
               <div className="list-row" key={p.id}>
@@ -183,7 +194,7 @@ export default function Controllo({ logo, negozio }) {
                   value={presente}
                   onChange={(e) => setPresente(p.id, e.target.value)}
                 >
-                  {Array.from({ length: 100 }, (_, i) => (
+                  {Array.from({ length: 200 }, (_, i) => (
                     <option key={i} value={i}>
                       {i}
                     </option>
